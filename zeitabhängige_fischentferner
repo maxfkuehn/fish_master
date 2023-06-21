@@ -1,0 +1,18 @@
+import os
+import numpy as np
+from IPython import embed
+from tqdm import tqdm
+
+
+########## loading data ############
+#load fishlist
+filename = sorted(os.listdir('../../../kuehn/data/analysed_data'))[0]
+fish_list = np.load('fishlist'+filename+'.npy', allow_pickle=True)
+
+#load recorded data
+filepath =('../../../kuehn/data/analysed_data/' + filename)
+ident = np.load(filepath + '/ident.npy', allow_pickle=True)
+sign = np.load(filepath + '/sign.npy', allow_pickle=True)
+freq = np.load(filepath + '/freq.npy', allow_pickle=True)
+timeidx = np.load(filepath + '/timeidx.npy', allow_pickle=True)
+times = np.load(filepath + '/times.npy', allow_pickle=True)
