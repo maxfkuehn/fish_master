@@ -59,9 +59,15 @@ def fish_list_unpacker(fish_list, filepath):
             st_time_idx = timeidx[ch][ident[ch] == ids]
             sf_tidx.extend(st_time_idx)
 
-
-            sign_idx = np.where([ident[ch] == ids])[0]
-            st_sign_idx = (lambda sign, ch, sign_idx: [max(sign[ch][idx]) for idx in sign_idx])(sign, ch, sign_idx)
+            if ch > 15:
+                ch_sign = ch - 16
+                sign_idx = np.where(ident[ch] == ids)[0]
+                st_sign_idx = (lambda sign, ch, sign_idx: [sign[ch][idx][ch_sign] for idx in sign_idx])(sign, ch, sign_idx)
+            else:
+                ch_sign = ch
+                sign_idx = np.where(ident[ch] == ids)[0]
+                st_sign_idx = (lambda sign, ch, sign_idx: [sign[ch][idx][ch_sign] for idx in sign_idx])(sign, ch,
+                                                                                                        sign_idx)
             sf_sign.extend(st_sign_idx)
 
         # fish_time = np.concatenate(time_fish)

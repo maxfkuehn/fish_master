@@ -49,7 +49,7 @@ for mp in tqdm(range(len(mapa))):
 
 
 real_fish_counter = len(fish_list)
-#embed()
+
 print(real_fish_counter)
 print(fish_list)
 #saving fishlist with data date

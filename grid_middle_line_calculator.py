@@ -67,7 +67,7 @@ if __name__ == "__main__":
     mlg = midle_line
     x_coords = [point[0] for point in mlg]
     y_coords = [point[1] for point in mlg]
-    embed()
+
     # Plot the data points
     plt.plot(x_coords, y_coords, marker='o', linestyle='-', color='blue')
     plt.xlabel('X')
