@@ -780,7 +780,7 @@ def fourier_expansion(time, eod, eodf, xtime):
     return fourier_series(xtime, *popt)
 
 
-def interactive_cluster_plot(X_pca,timepoint,amplitude,kmeans):
+def interactive_cluster_plot(X_pca,timepoint,amplitude,kmeans,show=True):
     
     fig, (ax_left, ax_right) = plt.subplots(1, 2, figsize=(12, 6)) 
 
@@ -826,8 +826,10 @@ def interactive_cluster_plot(X_pca,timepoint,amplitude,kmeans):
     # Connect the click event to the on_click function
     fig.canvas.mpl_connect('button_press_event', on_click)
 
-    plt.tight_layout()  # Adjust layout to avoid overlap
-    plt.show()   
+    if show==True:
+        plt.show() 
+    return fig
+    plt.tight_layout()  # Adjust layout to avoid overlap  
 
 # function to cluster attributes of thunderfish csv data
 
@@ -1166,12 +1168,6 @@ def thunderclusterer(path_way_csv, data_type = 'parameters' ,mode =  None):
             df_best_cluster = df_best_cluster[df_best_cluster['kmeans_3'] != bad_data]
             amp_used_cluster = df_best_cluster['stand_amp'].to_list()
             
-            
-            #cluster again with cleaned data
-            kmeans = KMeans(n_clusters=3)
-            kmeans.fit(amp_used_cluster)
-            df_best_cluster['kmeans_3']=kmeans.labels_
-
 
             # PCA of data to see which amplitude at time x was most impectfull
             pca = PCA(n_components=10)  # We want to reduce to 2 components for plotting
@@ -1182,22 +1178,60 @@ def thunderclusterer(path_way_csv, data_type = 'parameters' ,mode =  None):
             kmeans.fit(X_pca)
             df_best_cluster['kmeans_3']=kmeans.labels_
 
+             #cluster again with cleaned data
+            kmeans = KMeans(n_clusters=4)
+            kmeans.fit(X_pca)
+            df_best_cluster['kmeans_4']=kmeans.labels_
+
             #cluster again with cleaned data
             kmeans = KMeans(n_clusters=5)
             kmeans.fit(X_pca)
             df_best_cluster['kmeans_5']=kmeans.labels_
 
-
+            
 
             # Plotting the scatter with KMeans labels
+            EODf = df_best_cluster['freq'].to_list()
             plot_amp=df_best_cluster['stand_amp'].to_list()
             plot_time = df_best_cluster['timepoints'].to_list()
-            kmeans_label = df_best_cluster['kmeans_3'].to_list() 
-
-            interactive_cluster_plot(X_pca=X_pca,timepoint=plot_time,amplitude=plot_amp,kmeans=kmeans_label)               
+            kmeans_label = df_best_cluster['kmeans_3'].to_list()
             
-            plt.show()
+            stand_freq = (np.array(EODf)-min(EODf))/(max(EODf)-min(EODf))
+    
+            fused_data = np.column_stack((plot_amp,stand_freq))
 
+            k_means_3f,X_pca_f = kmeans_including_freq(plot_amp,EODf,k_kmeans=3)
+            k_means_4f,X_pca_f  = kmeans_including_freq(plot_amp,EODf,k_kmeans=4)
+            k_means_5f,X_pca_f  = kmeans_including_freq(plot_amp,EODf,k_kmeans=5)
+
+            kmeans_label4  = df_best_cluster['kmeans_4']
+            kmeans_label5  = df_best_cluster['kmeans_5']
+
+            embed()
+
+            kcluster_best_n(fused_data)
+
+            fig1 = interactive_cluster_plot(X_pca=X_pca,timepoint=plot_time,amplitude=plot_amp,kmeans=kmeans_label,show=False) 
+            a1 = fig1.axes[0] 
+            a1.set_title('k3 No freq')           
+            fig2 = interactive_cluster_plot(X_pca_f,plot_time,plot_amp,k_means_3f,show=False)
+            a2 = fig2.axes[0]
+            a2.set_title('k3 With Freq')
+            fig3 = interactive_cluster_plot(X_pca=X_pca,timepoint=plot_time,amplitude=plot_amp,kmeans=kmeans_label4,show=False) 
+            a3 = fig3.axes[0] 
+            a3.set_title('k4 No freq')           
+            fig4 = interactive_cluster_plot(X_pca_f,plot_time,plot_amp,k_means_4f,show=False)
+            a4 = fig4.axes[0]
+            a4.set_title('k4 With Freq')
+            fig5 = interactive_cluster_plot(X_pca=X_pca,timepoint=plot_time,amplitude=plot_amp,kmeans=kmeans_label5,show=False) 
+            a5 = fig5.axes[0] 
+            a5.set_title('k5 No freq')           
+            fig6 = interactive_cluster_plot(X_pca_f,plot_time,plot_amp,k_means_5f,show=False)
+            a6 = fig6.axes[0]
+            a6.set_title('k4 With Freq')
+
+            plt.show()
+            embed()
             plt.figure(figsize=(8, 6))
             plt.scatter(X_pca[:, 0], X_pca[:, 1], alpha=0.5)
             plt.title('PCA of stand_amp')
@@ -1458,7 +1492,7 @@ def thunderclusterer(path_way_csv, data_type = 'parameters' ,mode =  None):
             
         elif data_type == 'waveform':
             print('lol')
-            embed()
+           
 
 def k_means_group_plot(timepoints:List,amplitude:List,kmeanlabels:List):
     """
@@ -1527,6 +1561,82 @@ def pca_accum_exvar(amplitude,freq):
     ax[1].set_title('With Eod Frequency')
     plt.show()
 
+def kmeans_including_freq(amplitude,frequency,k_kmeans,pca_n=10):
+    '''
+    This function performs k-clustering on waveform data with the inclusion of
+    EOD frequrency as parameter. It returnd the k labels of each fish and the Xpca of PCA.
+
+    Input: 
+    amplitude: array of amplitude of EODf
+    frequency: array or list of EODf for every fish
+    k_means: The amount of clusters the kclustering divides the data into
+    pca_n: Optional. Number of pca components that are used. Default is 10.
+
+    Output:
+    Retuns the label of each cluster for each fish but also the Xpca of the PCA
+
+    '''
+
+    stand_freq = (np.array(frequency)-min(frequency))/(max(frequency)-min(frequency))
+
+    fused_data = np.column_stack((amplitude,stand_freq))
+
+    pca = PCA(n_components=pca_n)
+    X_pca = pca.fit_transform(fused_data)
+
+    kmeans = KMeans(n_clusters=k_kmeans)
+    kmeans.fit(X_pca)
+    k_labels=kmeans.labels_
+    
+    return k_labels,X_pca 
+
+def parameter_pca_influence(data):
+    """
+    Function calculates the most influancual 10 features of the pca_components 
+    that explain the most varriance.
+
+    Input: 
+    data: list or array of data
+
+    returns: 
+    top_features: Top features of each PCA componend by indx
+    feature value: eigenvactor (?) value of each feature of each pca component
+    explained_var: number in % that show how much of the varriance is explained
+
+    """
+    pca = PCA(n_components=10)
+    X_pca = pca.fit_transform(data)
+    n_pcs = pca.components_.shape[0]
+
+    parameter_id = list(range(len(data)))
+    #print(f'Feateures: # {parameter_id[-1]}')
+    
+
+    explained_var = []
+    top_features = []
+    feature_value = []
+
+    for id in range(len(pca.components_)):
+        if pca.explained_variance_ratio_[id] > 0.01:
+           
+            explained_var.append(pca.explained_variance_ratio_[id])
+
+            cop = pca.components_[id]
+
+            comp_id_link = list(zip(cop,parameter_id))
+          
+            sorted_list = sorted(comp_id_link, key=lambda x:x[0])
+
+            sorted_comp, sorted_id = zip(*sorted_list)
+
+            top_features.append(sorted_id[:10])
+            feature_value.append(sorted_comp[:10])
+
+        else:
+            break
+    
+    return top_features, feature_value, explained_var   
+
 def kcluster_best_n(amplitude):
 
 
@@ -1548,6 +1658,7 @@ def kcluster_best_n(amplitude):
     plt.ylabel('Sum_of_squared_distances')
     plt.title('Elbow Method For Optimal k')
     plt.show()
+
 ##### Main functio4
 
 if __name__ == "__main__":
@@ -1562,7 +1673,8 @@ if __name__ == "__main__":
     
    
     
-    #k_means_group_plot(timepoints=timepoints,amplitude=EodF,kmeanlabels=kmeans)
+    #k_means_group_plot(timepoints=timepoints,amplitude=stand_amp,kmeanlabels=kmeans)
+    kcluster_best_n(stand_amp)
 
     freq = df_data['freq'].to_list()
     stand_freq = np.array(freq)/max(freq)
