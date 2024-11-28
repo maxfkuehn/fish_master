@@ -771,6 +771,26 @@ xtime: array of time range and resolution of the output data
 
 '''
 def fourier_expansion(time, eod, eodf, xtime):
+
+        
+    '''
+    This function uses the fourier expansion out of Thundefish by Jan Benda
+    to calculate waveform extansion over a given time range and time resolution.
+
+
+    Input:
+    time: time array of data
+    eod: measured eod amp array
+    eodf: frequency of eod
+    xtime: array of time range and resolution of the output data    
+
+
+    '''
+
+
+
+
+
     ampl = 0.5*(np.max(eod)-np.min(eod))
     n_harm = 20
     params = [eodf]
@@ -781,6 +801,13 @@ def fourier_expansion(time, eod, eodf, xtime):
 
 
 def interactive_cluster_plot(X_pca,timepoint,amplitude,kmeans,show=True):
+
+    '''
+    Interactive plot off EODf PCA.
+    Clicking on a data in the scatter plot creates corresponding EODf waveform plot.
+    Left side plot of PCA Components 1 and 2 as scatterplot.
+    Right side corresponding EODf Waveform of a selected data point.
+    '''
     
     fig, (ax_left, ax_right) = plt.subplots(1, 2, figsize=(12, 6)) 
 
@@ -832,6 +859,259 @@ def interactive_cluster_plot(X_pca,timepoint,amplitude,kmeans,show=True):
     plt.tight_layout()  # Adjust layout to avoid overlap  
 
 # function to cluster attributes of thunderfish csv data
+
+def interactive_plot_fish_connection(X_pca, timepoint, amplitude, kmeans, fish_id, 
+                                     x_edges=False, y_edges=False, fish_amount=-1, show=True):
+    
+    '''
+    Ineratcitve PCA plot, dat on cick on PCA data point creates a corresponding EODF Waveform.
+    It also plots all data points of a fish in one colore and connected dots.
+
+    
+    
+    '''
+
+
+
+    fig, (ax_left, ax_right) = plt.subplots(1, 2, figsize=(12, 6))
+
+    ax_left.set_title('PCA of stand_amp with KMeans Clusters')
+    ax_left.set_xlabel('Principal Component 1')
+    ax_left.set_ylabel('Principal Component 2')
+
+    unique_fish_ids = list(set(fish_id))
+    line_to_indices = {}  # To map each line to its corresponding original indices
+    lines = {} #stores refernce lines
+    
+    # Plot lines connecting points of the same fish_id
+    for fish in unique_fish_ids[:fish_amount]:
+        # Get the indices of points with the same fish_id
+        indices = np.where(np.array(fish_id) == fish)[0]
+        
+        x_points = X_pca[indices, 0]
+        y_points = X_pca[indices, 2]
+        
+        # Plot the points and connect them with lines
+        line, = ax_left.plot(x_points, y_points, marker='o', label=f'Fish {fish}')  
+        line_to_indices[line] = indices  # Map the line to its original indices
+        lines[fish] = line
+
+        # Plot grid lines if edges are provided
+        if x_edges is not False:
+            for x in x_edges:
+                ax_left.axvline(x, color='gray', linestyle='--', linewidth=0.5)
+            for y in y_edges:
+                ax_left.axhline(y, color='gray', linestyle='--', linewidth=0.5)
+
+    # Placeholder line for the right plot
+    line_right, = ax_right.plot([], [], color='orange')  
+
+    def count_lines_with_negative_points(lines):
+        count = 0
+        for line in lines.values():
+            # Get the x and y data of the line
+            xdata, ydata = line.get_xdata(), line.get_ydata()
+            
+            # Check if any point on this line satisfies x < 0 and y < 0
+            if any(x < 0 and y < 0 for x, y in zip(xdata, ydata)):
+                count += 1
+
+        return count
+
+    # Function to update the right plot
+    def update_right_plot(index):
+        x_data = timepoint[index]
+        y_data = amplitude[index]
+        line_right.set_data(x_data, y_data)
+        ax_right.relim()
+        ax_right.autoscale_view()
+        fig.canvas.draw()
+    
+    def left_plot_marker_update(selected_line):
+
+        # Reset all lines to default style
+        for other_line in lines.values():
+            other_line.set_markersize(5)  # Reset marker size
+            other_line.set_linewidth(1)  # Reset line width
+            other_line.set_zorder(1)  # Reset z-order
+        
+
+        # Highlight the selected line
+        selected_line.set_markersize(10)  # Increase marker size
+        selected_line.set_zorder(10) # Bring the line to the foreground
+        selected_line.set_linewidth(3) # Makes line bigger
+
+   
+
+        fig.canvas.draw()
+
+
+    # Function to handle clicks on the plot
+    def on_click(event):
+        if event.inaxes == ax_left:  # Check if the click was in the left plot
+            for line, indices in line_to_indices.items():
+                xdata, ydata = line.get_xdata(), line.get_ydata()
+                distances = np.sqrt((xdata - event.xdata) ** 2 + (ydata - event.ydata) ** 2)
+                min_distance = np.min(distances)
+                if min_distance < 0.1:  # Threshold for considering a point as clicked
+                    closest_point_index = np.argmin(distances)
+                    original_index = indices[closest_point_index]  # Map back to original index
+
+                    print(f'Fish NR {fish_id[original_index]}')
+
+                    update_right_plot(original_index)  # Update the right plot
+
+                    left_plot_marker_update(line)
+
+                    break
+
+    # Connect the click event to the on_click function
+    fig.canvas.mpl_connect('button_press_event', on_click)
+
+    count = count_lines_with_negative_points(lines)
+    number_of_fish = len(lines)
+
+    prozent_wanne = count/number_of_fish*100
+
+    print(f'{prozent_wanne}% of fish have atleast one data point with a Badewanne ({count} out of {number_of_fish} fish)')
+
+    # Show the plot if required
+    if show:
+        plt.show()
+
+    return fig
+
+def interactive_plot_wo_eigenmannia(X_pca, timepoint, amplitude, kmeans, fish_id, 
+                                     x_edges=False, y_edges=False, fish_amount=-1, show=True):
+    
+    '''
+    Ineratcitve PCA plot, dat on cick on PCA data point creates a corresponding EODF Waveform.
+    It also plots all data points of a fish in one colore and connected dots.
+    This one only shows fish that have no negative PCA data point.
+    
+    '''
+
+
+
+    fig, (ax_left, ax_right) = plt.subplots(1, 2, figsize=(12, 6))
+
+    ax_left.set_title('PCA of stand_amp with KMeans Clusters')
+    ax_left.set_xlabel('Principal Component 1')
+    ax_left.set_ylabel('Principal Component 2')
+
+    unique_fish_ids = list(set(fish_id))
+    line_to_indices = {}  # To map each line to its corresponding original indices
+    lines = {} #stores refernce lines
+    
+    # Plot lines connecting points of the same fish_id
+    for fish in unique_fish_ids[:fish_amount]:
+        # Get the indices of points with the same fish_id
+        indices = np.where(np.array(fish_id) == fish)[0]
+        
+        x_points = X_pca[indices, 0]
+        y_points = X_pca[indices, 2]
+        
+        # Plot the points and connect them with lines
+        line, = ax_left.plot(x_points, y_points, marker='o', label=f'Fish {fish}')  
+        line_to_indices[line] = indices  # Map the line to its original indices
+        lines[fish] = line
+
+        # Plot grid lines if edges are provided
+        if x_edges is not False:
+            for x in x_edges:
+                ax_left.axvline(x, color='gray', linestyle='--', linewidth=0.5)
+            for y in y_edges:
+                ax_left.axhline(y, color='gray', linestyle='--', linewidth=0.5)
+
+    # Placeholder line for the right plot
+    line_right, = ax_right.plot([], [], color='orange')  
+
+    def only_positive_pca_plot(lines):
+        count = 0
+        for line in lines.values():
+            # Get the x and y data of the line
+            xdata, ydata = line.get_xdata(), line.get_ydata()
+            
+            # Check if any point on this line satisfies x < 0 and y < 0
+            if any(x < 0 and y < 0 for x, y in zip(xdata, ydata)):
+                #line.remove()
+
+                line.set_markersize(3)  # Increase marker size
+                line.set_zorder(1) # Bring the line to the foreground
+                line.set_linestyle('None')
+                line.set_markerfacecolor('black')
+
+            else :
+                count += 1
+                line.set_zorder(5)
+        
+        fig.canvas.draw()
+
+        return count
+
+    # Function to update the right plot
+    def update_right_plot(index):
+        x_data = timepoint[index]
+        y_data = amplitude[index]
+        line_right.set_data(x_data, y_data)
+        ax_right.relim()
+        ax_right.autoscale_view()
+        fig.canvas.draw()
+    
+    def left_plot_marker_update(selected_line):
+
+        # Reset all lines to default style
+        for other_line in lines.values():
+            other_line.set_markersize(5)  # Reset marker size
+            other_line.set_linewidth(1)  # Reset line width
+            other_line.set_zorder(1)  # Reset z-order
+        
+
+        # Highlight the selected line
+        selected_line.set_markersize(10)  # Increase marker size
+        selected_line.set_zorder(10) # Bring the line to the foreground
+        selected_line.set_linewidth(3) # Makes line bigger
+
+   
+
+        fig.canvas.draw()
+
+
+    # Function to handle clicks on the plot
+    def on_click(event):
+        if event.inaxes == ax_left:  # Check if the click was in the left plot
+            for line, indices in line_to_indices.items():
+                xdata, ydata = line.get_xdata(), line.get_ydata()
+                distances = np.sqrt((xdata - event.xdata) ** 2 + (ydata - event.ydata) ** 2)
+                min_distance = np.min(distances)
+                if min_distance < 0.1:  # Threshold for considering a point as clicked
+                    closest_point_index = np.argmin(distances)
+                    original_index = indices[closest_point_index]  # Map back to original index
+
+                    print(f'Fish NR {fish_id[original_index]}')
+
+                    update_right_plot(original_index)  # Update the right plot
+
+                    left_plot_marker_update(line)
+
+                    break
+
+    # Connect the click event to the on_click function
+    fig.canvas.mpl_connect('button_press_event', on_click)
+    count = only_positive_pca_plot(lines)
+    
+    number_of_fish = len(lines)
+
+    prozent_wo_wanne = count/number_of_fish*100
+
+    print(f'{prozent_wo_wanne}% are not in the Wanne Zone ({count} out of {number_of_fish} fish)')
+
+    # Show the plot if required
+    if show:
+        plt.show()
+
+    return fig
+
 
 def thunderclusterer(path_way_csv, data_type = 'parameters' ,mode =  None):
     '''
@@ -1195,6 +1475,7 @@ def thunderclusterer(path_way_csv, data_type = 'parameters' ,mode =  None):
             plot_amp=df_best_cluster['stand_amp'].to_list()
             plot_time = df_best_cluster['timepoints'].to_list()
             kmeans_label = df_best_cluster['kmeans_3'].to_list()
+            fish_nr_id = df_best_cluster['fish'].to_list()
             
             stand_freq = (np.array(EODf)-min(EODf))/(max(EODf)-min(EODf))
     
@@ -1207,9 +1488,20 @@ def thunderclusterer(path_way_csv, data_type = 'parameters' ,mode =  None):
             kmeans_label4  = df_best_cluster['kmeans_4']
             kmeans_label5  = df_best_cluster['kmeans_5']
 
-            embed()
-
             kcluster_best_n(fused_data)
+
+            assigned_grid, x_edges, y_edges =pca_grid_selection(Xpca=X_pca)
+
+            interactive_plot_fish_connection(X_pca=X_pca,timepoint=plot_time,amplitude=plot_amp,
+                                             kmeans=k_means_4f,x_edges=x_edges,y_edges=y_edges,
+                                             fish_id=fish_nr_id)
+
+            interactive_plot_wo_eigenmannia(X_pca=X_pca,timepoint=plot_time,amplitude=plot_amp,
+                                    kmeans=k_means_4f,x_edges=x_edges,y_edges=y_edges,
+                                    fish_id=fish_nr_id)
+
+
+            embed()
 
             fig1 = interactive_cluster_plot(X_pca=X_pca,timepoint=plot_time,amplitude=plot_amp,kmeans=kmeans_label,show=False) 
             a1 = fig1.axes[0] 
@@ -1230,8 +1522,10 @@ def thunderclusterer(path_way_csv, data_type = 'parameters' ,mode =  None):
             a6 = fig6.axes[0]
             a6.set_title('k4 With Freq')
 
+            fish_id = df_best_cluster['fish'].to_list()
+
+
             plt.show()
-            embed()
             plt.figure(figsize=(8, 6))
             plt.scatter(X_pca[:, 0], X_pca[:, 1], alpha=0.5)
             plt.title('PCA of stand_amp')
@@ -1532,6 +1826,67 @@ def k_means_group_plot(timepoints:List,amplitude:List,kmeanlabels:List):
 
     #def kmeans_visualizer(amplitude):
 
+def pca_grid_selection(Xpca,n_bins=5):
+    """
+    This function puts the PCA results into a quadratic 2-d grid created by np.histogram2d 
+    and assign the data points to the grid cells. 
+
+    Input:
+    Xpca: X pca result
+    n_grid_cells: Optional (default = 5), amount of bins per x and y axis. Total cell amount is bins squared
+
+    Returns:
+    assigned_cell_list: list of numbers which indicates to which cell the data was assigned to
+    x_edges: edges of the grin on x-axes   
+    y_edges: edges of the grin on y-axes
+    """
+    x=Xpca[:,0]
+    y=Xpca[:,1]
+
+
+    counts,x_edges,y_edges = np.histogram2d(x,y,bins = n_bins)
+
+    x_bins = np.digitize(x, x_edges) - 1  
+    y_bins = np.digitize(y, y_edges) - 1
+    
+    grid_assignments = {}
+    for i in range(len(x)):
+        cell = (x_bins[i], y_bins[i])
+        if cell not in grid_assignments:
+            grid_assignments[i] = []
+        grid_assignments[i].append(cell)
+    
+    return grid_assignments, x_edges, y_edges
+
+def pca_grid_plotter(X_pca,grid_assignments,x_edges,y_edges):
+    """
+    Plots the assigned grid over the pca data and conncets data from the same fish.
+
+    Input:
+    X_pca: X Pca data
+    grid_assignments: dict of the assignment of data points to a cell
+    x_edges: Edges of the x-axis of the grid
+    y_edges: Edges of the y-axis of the grid
+
+    Output:
+    Figure of the assigned cells.
+
+    """
+    plt.figure(figsize=(10, 8))
+    plt.scatter(X_pca[:, 0], X_pca[:, 1], alpha=0.5)
+
+    for x in x_edges:
+        plt.axvline(x, color='gray', linestyle='--', linewidth=0.5)
+    for y in y_edges:
+        plt.axhline(y, color='gray', linestyle='--', linewidth=0.5)
+
+    plt.title("PCA Grid Plot")
+    plt.xlabel("PCA Component 1")
+    plt.ylabel("PCA Component 2")
+    plt.show()
+
+
+
 def pca_accum_exvar(amplitude,freq):
     
 
@@ -1625,12 +1980,12 @@ def parameter_pca_influence(data):
 
             comp_id_link = list(zip(cop,parameter_id))
           
-            sorted_list = sorted(comp_id_link, key=lambda x:x[0])
+            sorted_list = sorted(comp_id_link, key=lambda x:x[0],reverse=True)
 
             sorted_comp, sorted_id = zip(*sorted_list)
 
-            top_features.append(sorted_id[:10])
-            feature_value.append(sorted_comp[:10])
+            top_features.append(sorted_id)
+            feature_value.append(sorted_comp)
 
         else:
             break

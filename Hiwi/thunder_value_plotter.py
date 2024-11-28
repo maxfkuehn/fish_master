@@ -14,7 +14,16 @@ from scipy import interpolate
 #
 #
 # 
-def thunderloader(path_way):
+def thunder_value_plotter(path_way):
+    """
+    This function laods EODf data from waveeod.csv files.
+    Then take the 5 best correlating waveforms of each fish and
+    plots them together with a histogram of the P-P Amplitudes of the fish
+
+    Input: 
+    path_way: String input of the pathway to the CSV files created by thunderfish
+    """
+
     # load all *waveeod files
     laoded_names_waveeod = []
     os.chdir(path_way)
@@ -442,5 +451,5 @@ if __name__ == "__main__":
 
     path_wavforms = '/home/kuehn/data/waveforms/thunderfish'
     time_window_thunderfish = ['t0','t2','t4','t6','t8']
-    thunderloader(path_wavforms)
+    thunder_value_plotter(path_wavforms)
 
