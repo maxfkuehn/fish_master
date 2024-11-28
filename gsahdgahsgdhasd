@@ -1,0 +1,60 @@
+  if event.key == 'y':
+            if self.selection == 'confirm_t':
+                self.old_fish_list = np.copy(self.fish_list)
+                self.old_ident = np.copy(self.ident)
+
+                self.fish_list[self.fish1].extend(self.fish_list[self.fish2])
+                self.fish_list.pop(self.fish2)
+                print('Fish fused!\n')
+                self.selection = None
+                self.update_fish_list()
+                self.fish1 = []
+                self.fish2 = []
+
+            if self.selection == 'confirm_z':
+                self.old_fish_list = np.copy(self.fish_list)
+                self.old_ident = np.copy(self.ident)
+
+                self.fish_list_append_before =[]
+                self.fish_list_append_after = []
+                self.idx_counter = -1
+                self.delete_pair = []
+
+                for fl in self.fish_list[self.sel_fish]:
+
+
+
+                    self.fish_ident_idx = self.ident[fl[0]] == fl[1]
+
+                    self.fish_time_before_point = self.timeidx[fl[0]] <= self.point_x
+                    self.fish_time_after_point = self.timeidx[fl[0]] > self.point_x
+
+                    self.fish_ident_idx_after_dot = np.where(self.fish_ident_idx & self.fish_time_after_point)[0]
+                    self.fish_ident_idx_before_dot = np.where(self.fish_ident_idx & self.fish_time_before_point)[0]
+
+                    embed()
+
+                    if self.fish_ident_idx_after_dot > 0:
+
+                        self.delete_pair.extend(fl)
+
+                        if self.fish_ident_idx_before_dot > 0:
+                            self.highest_id += 1
+                            self.ident[fl[0]][self.fish_ident_idx_before_dot] = self.highest_id
+                            self.fish_list_append_before.extend([fl[0], self.highest_id])
+
+                            self.highest_id += 1
+                            self.ident[fl[0]][self.fish_ident_idx_after_dot]= self.highest_id
+                            self.fish_list_append_after.extend([fl[0], self.highest_id])
+
+
+                        else:
+                            self.highest_id += 1
+                            self.ident[fl[0]][self.fish_ident_idx_after_dot] = self.highest_id
+                            self.fish_list_append_after.extend([fl[0], self.highest_id])
+
+
+                    else:
+                        continue
+
+                embed()
